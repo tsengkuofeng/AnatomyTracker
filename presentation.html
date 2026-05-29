@@ -320,7 +320,10 @@
 
     <script>
         // ========== 全局變數 ==========
-        let myPeer = new Peer({
+        let myPeer = new Peer(undefined, {
+        host: '0.peerjs.com',
+        port: 443,
+        secure: true,
         config: {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
