@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AnatomyTracker - 鏡頭端</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
     <style>
         :root {
             --bg-color: #FAF9F6;
@@ -33,7 +37,7 @@
         .card {
             background: white;
             width: 100%;
-            max-width: 400px;
+            max-width: 500px;
             border-radius: 12px;
             padding: 25px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
@@ -64,7 +68,7 @@
             outline: none;
         }
 
-        .btn-start {
+        button {
             background-color: var(--accent-color);
             color: white;
             width: 100%;
@@ -77,70 +81,61 @@
             transition: 0.2s;
         }
 
-        .btn-start:active {
+        button:active {
             opacity: 0.8;
         }
 
-        .btn-switch {
-            background-color: white;
-            color: var(--accent-color);
-            border: 1px solid var(--accent-color);
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            width: 100%;
-        }
-
-        .btn-switch:hover {
-            background-color: #fcedf2;
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         #id-container {
             display: none;
-            text-align: center;
         }
 
         .big-id {
-            font-size: 36px;
+            font-size: 48px;
             color: var(--accent-color);
             font-weight: 800;
-            letter-spacing: 5px;
-            margin: 15px 0;
+            letter-spacing: 8px;
+            margin: 20px 0;
             background: #f4f4f4;
-            padding: 10px;
+            padding: 20px;
             border-radius: 8px;
+            text-align: center;
+            font-family: monospace;
         }
 
         .video-container {
             position: relative;
             width: 100%;
-            margin-top: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
         }
 
         video {
             width: 100%;
             border-radius: 8px;
             background: #000;
+            display: block;
         }
 
-        video.mirrored {
-            transform: scaleX(-1);
+        output_canvas {
+            width: 100%;
+            display: block;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 6px 12px;
+            padding: 8px 16px;
             background: #eee;
             border-radius: 20px;
             font-size: 13px;
             color: #666;
-            margin-top: 5px;
+            margin-top: 10px;
             font-weight: 500;
         }
 
@@ -158,7 +153,7 @@
     </style>
 </head>
 <body>
-    <h2>AnatomyTracker 鏡頭端</h2>
+    <h2>📱 AnatomyTracker 鏡頭端</h2>
 
     <div class="card" id="settings-card">
         <div class="form-group">
@@ -167,17 +162,18 @@
                 <option value="squat">深蹲 (Squat)</option>
                 <option value="deadlift">硬舉 (Deadlift)</option>
                 <option value="pushup">伏地挺身 (Pushup)</option>
+                <option value="pullup">引體向上 (Pullup)</option>
             </select>
         </div>
         <div class="form-group">
             <label>2. 拍攝角度</label>
             <select id="camera-angle">
-                <option value="sagittal">側面觀 (Side)</option>
-                <option value="frontal_back">背面觀 (Back)</option>
-                <option value="frontal_front">正面觀 (Front)</option>
+                <option value="side">側面觀 (Side View)</option>
+                <option value="back">背面觀 (Back View)</option>
+                <option value="front">正面觀 (Front View)</option>
             </select>
         </div>
-        <button class="btn-start" onclick="initCamera()">啟動鏡頭 & 獲取 ID</button>
+        <button onclick="initCamera()">🎥 啟動鏡頭</button>
     </div>
 
     <div class="card" id="id-container">
@@ -187,22 +183,23 @@
 
         <div class="video-container">
             <video id="localVideo" autoplay muted playsinline></video>
+            <canvas id="output_canvas" style="position:absolute; top:0; left:0; width:100%; display:none;"></canvas>
         </div>
 
-        <button class="btn-switch" onclick="switchCamera()">
-            🔄 切換前後鏡頭
-        </button>
-
-        <p style="font-size:12px; color:#888; margin-top:10px;">請保持螢幕開啟</p>
+        <p style="font-size:12px; color:#888; margin-top:15px; text-align:center;">
+            ✓ 鏡頭已開啟<br>
+            ✓ 節點檢測中<br>
+            請保持手機開啟
+        </p>
     </div>
 
-    <div class="footer-info">&copy; 2026 AnatomyTracker</div>
+    <div class="footer-info">&copy; 2026 AnatomyTracker - 鏡頭端</div>
 
     <script>
         let peer;
         let localStream;
         let currentCall = null;
-        let currentFacingMode = 'environment';
+        let pose = null;
 
         function generateShortId() {
             return Math.floor(1000 + Math.random() * 9000).toString();
@@ -228,7 +225,7 @@
 
             peer.on('connection', (conn) => {
                 const badge = document.getElementById('conn-status');
-                badge.innerText = "✅ 已連線至監控端";
+                badge.innerText = "✅ 已連線至監控台";
                 badge.classList.add('connected');
 
                 if(localStream) {
@@ -251,23 +248,12 @@
             idContainer.style.display = 'block';
             statusBadge.innerText = "正在請求相機權限...";
 
-            await startVideo(currentFacingMode);
-
-            statusBadge.innerText = "相機就緒，正在獲取 ID...";
-            initPeer();
-        }
-
-        async function startVideo(facingMode) {
             try {
-                if (localStream) {
-                    localStream.getTracks().forEach(track => track.stop());
-                }
-
                 const constraints = {
                     video: {
-                        facingMode: facingMode,
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     },
                     audio: false
                 };
@@ -277,35 +263,50 @@
                 const videoEl = document.getElementById('localVideo');
                 videoEl.srcObject = localStream;
 
-                if (facingMode === 'user') {
-                    videoEl.classList.add('mirrored');
-                } else {
-                    videoEl.classList.remove('mirrored');
-                }
+                statusBadge.innerText = "相機就緒，正在獲取 ID...";
 
-                return localStream;
+                // 初始化 MediaPipe Pose
+                initPoseDetection();
+
+                // 初始化 PeerJS
+                initPeer();
 
             } catch (err) {
                 console.error(err);
                 alert("無法開啟相機，請確認權限。");
-                throw err;
             }
         }
 
-        async function switchCamera() {
-            currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        function initPoseDetection() {
+            const videoEl = document.getElementById('localVideo');
+            const canvasEl = document.getElementById('output_canvas');
 
-            const newStream = await startVideo(currentFacingMode);
+            pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
 
-            if (currentCall && currentCall.peerConnection) {
-                const videoTrack = newStream.getVideoTracks()[0];
-                const sender = currentCall.peerConnection.getSenders().find((s) => s.track.kind === 'video');
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
 
-                if (sender) {
-                    sender.replaceTrack(videoTrack);
-                    console.log("已切換影像軌道");
+            pose.onResults((results) => {
+                // 可以在這裡進行骨骼繪製
+                // drawSkeleton(canvasEl, results);
+            });
+
+            async function detectFrame() {
+                if (videoEl.videoWidth > 0) {
+                    canvasEl.width = videoEl.videoWidth;
+                    canvasEl.height = videoEl.videoHeight;
+                    await pose.send({ image: videoEl });
                 }
+                requestAnimationFrame(detectFrame);
             }
+
+            detectFrame();
         }
     </script>
 </body>
