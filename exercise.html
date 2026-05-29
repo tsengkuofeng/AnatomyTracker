@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnatomyTracker - 動作追蹤</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="js/exercises.js"></script>
+    <style>
+        :root {
+            --bg-color: #FAF9F6;
+            --accent-color: #800020;
+            --text-color: #333333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 1px solid #ddd;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-back:hover {
+            background: #f0f0f0;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        #canvas-3d {
+            flex: 1;
+            background: #34495e;
+        }
+
+        #control-panel {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #ddd;
+            overflow-y: auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <button class="btn-back" onclick="goBack()">← 返回</button>
+        <h1 id="exercise-title">載入中...</h1>
+        <div></div>
+    </header>
+
+    <div class="main-container">
+        <canvas id="canvas-3d"></canvas>
+        <div id="control-panel">
+            <div id="exercise-info"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentExercise = null;
+
+        function getExerciseIdFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        function initExercise() {
+            const exerciseId = getExerciseIdFromURL();
+            currentExercise = getExerciseById(exerciseId);
+
+            if (!currentExercise) {
+                alert('找不到此動作');
+                window.location.href = '/';
+                return;
+            }
+
+            document.getElementById('exercise-title').textContent = currentExercise.name;
+            document.getElementById('exercise-info').innerHTML = `
+                <h3>${currentExercise.name}</h3>
+                <p>${currentExercise.description}</p>
+                <p><strong>難度:</strong> ${currentExercise.difficulty}</p>
+                <p><strong>建議組數:</strong> ${currentExercise.training.defaultSets}</p>
+                <p><strong>建議次數:</strong> ${currentExercise.training.defaultReps}</p>
+            `;
+
+            // 初始化 Three.js 和其他邏輯
+            console.log('載入動作:', currentExercise);
+        }
+
+        function goBack() {
+            window.location.href = '/';
+        }
+
+        document.addEventListener('DOMContentLoaded', initExercise);
+    </script>
+</body>
+</html>

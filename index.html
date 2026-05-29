@@ -3,25 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AnatomyTracker - 解剖模型動作追蹤</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <title>AnatomyTracker - 選擇動作</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/cards.css">
+    <script src="js/exercises.js"></script>
+</head>
+<body>
+    <header>
+        <h1>🧬 AnatomyTracker</h1>
+        <div class="subtitle">選擇要追蹤的動作</div>
+    </header>
 
-    <!-- ✅ THREE.js 和 GLTFLoader - 順序很重要 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
+    <div class="container">
+        <!-- 分類標籤 -->
+        <div class="category-tabs">
+            <button class="tab-btn active" onclick="filterByCategory('all')">全部</button>
+            <button class="tab-btn" onclick="filterByCategory('chest')">胸部</button>
+            <button class="tab-btn" onclick="filterByCategory('back')">背部</button>
+            <button class="tab-btn" onclick="filterByCategory('legs')">腿部</button>
+        </div>
 
-    <!-- MediaPipe -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+        <!-- 動作卡片網格 -->
+        <div class="exercises-grid" id="exercisesGrid"></div>
+    </div>
 
     <style>
-        :root {
-            --bg-color: #FAF9F6;
-            --accent-color: #800020;
-            --text-color: #333333;
-            --gray-light: #E0E0E0;
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -29,371 +35,269 @@
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             font-family: "Helvetica Neue", Arial, sans-serif;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            color: #333;
         }
 
         header {
             text-align: center;
-            padding: 15px 0;
-            border-bottom: 1px solid var(--gray-light);
-            background: white;
-            z-index: 10;
-            flex-shrink: 0;
-        }
-
-        h1 {
-            margin: 0;
-            font-weight: 700;
-            color: var(--text-color);
-            font-size: 28px;
-        }
-
-        .subtitle {
-            color: var(--accent-color);
-            font-size: 12px;
-            margin-top: 5px;
-        }
-
-        .main-container {
-            flex: 1;
-            display: flex;
-            flex-direction: row;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            gap: 0;
-            background: #000;
-        }
-
-        #canvas-3d {
-            flex: 1;
-            min-width: 0;
-            background: #34495e;
-        }
-
-        #control-panel {
-            width: 350px;
-            flex-shrink: 0;
-            background: white;
-            border-left: 1px solid var(--gray-light);
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            padding: 20px;
-            gap: 20px;
-        }
-
-        .panel-section {
-            border-bottom: 1px solid var(--gray-light);
-            padding-bottom: 15px;
-        }
-
-        .panel-section:last-child {
-            border-bottom: none;
-        }
-
-        .panel-section h3 {
-            color: var(--accent-color);
-            font-size: 14px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .info-item {
-            font-size: 12px;
-            margin: 8px 0;
-            padding: 8px;
-            background: var(--bg-color);
-            border-radius: 4px;
-            border-left: 3px solid var(--accent-color);
-        }
-
-        .info-label {
-            font-weight: bold;
-            color: #555;
-        }
-
-        .info-value {
-            color: var(--accent-color);
-            font-weight: 600;
-        }
-
-        .input-group {
-            margin: 10px 0;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 12px;
-            font-weight: bold;
-            color: #666;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .btn-primary {
-            background-color: var(--accent-color);
+            padding: 40px 20px;
             color: white;
         }
 
-        .btn-primary:hover {
+        header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .subtitle {
+            font-size: 16px;
             opacity: 0.9;
         }
 
-        .btn-secondary {
-            background-color: var(--bg-color);
-            color: var(--accent-color);
-            border: 1px solid var(--accent-color);
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .btn-secondary:hover {
-            background-color: #f0f0f0;
+        /* 分類標籤 */
+        .category-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
         }
 
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            background: #eee;
-            border-radius: 12px;
-            font-size: 11px;
-            color: #666;
+        .tab-btn {
+            padding: 12px 24px;
+            border: 2px solid white;
+            background: transparent;
+            color: white;
+            border-radius: 25px;
+            font-size: 14px;
             font-weight: 600;
-            margin-top: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
         }
 
-        .status-badge.connected {
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        /* 卡片網格 */
+        .exercises-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        /* 卡片樣式 */
+        .exercise-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .exercise-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-image::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: moveBackground 20s linear infinite;
+        }
+
+        @keyframes moveBackground {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .card-icon {
+            font-size: 60px;
+            z-index: 1;
+        }
+
+        .card-content {
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .card-category {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-description {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+            flex: 1;
+            line-height: 1.5;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        .difficulty {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .difficulty.beginner {
             background: #d4edda;
             color: #155724;
         }
 
-        .status-badge.disconnected {
+        .difficulty.intermediate {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .difficulty.advanced {
             background: #f8d7da;
             color: #721c24;
         }
+
+        .btn-start {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .btn-start:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 36px;
+            }
+
+            .exercises-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
-</head>
-<body>
-
-    <header>
-        <h1>🧬 AnatomyTracker</h1>
-        <div class="subtitle">3D 解剖模型實時動作追蹤</div>
-    </header>
-
-    <div class="main-container">
-        <canvas id="canvas-3d"></canvas>
-
-        <div id="control-panel">
-            <div class="panel-section">
-                <h3>📱 連線設定</h3>
-                <div class="input-group">
-                    <label>手機 ID</label>
-                    <input type="text" id="phone-id" placeholder="輸入手機 4 位數 ID">
-                </div>
-                <div class="btn-group">
-                    <button class="btn btn-primary" onclick="connectPhone()">連線</button>
-                    <button class="btn btn-secondary" onclick="disconnectPhone()">斷開</button>
-                </div>
-                <div id="connection-status">
-                    <span class="status-badge disconnected">未連線</span>
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <h3>📊 系統狀態</h3>
-                <div class="info-item">
-                    <span class="info-label">FPS:</span>
-                    <span class="info-value" id="fps">0</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">模型狀態:</span>
-                    <span class="info-value" id="model-status">載入中...</span>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script>
-        let myPeer = new Peer();
-        let scene, camera, renderer;
-        let modelAnimator = null;
-        let fpsCounter = { fps: 0, frameCount: 0, lastTime: performance.now() };
+        let currentCategory = 'all';
 
-        function initThreeJS() {
-            const canvas = document.getElementById('canvas-3d');
+        function renderExercises() {
+            const grid = document.getElementById('exercisesGrid');
+            grid.innerHTML = '';
 
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x34495e);
+            let exercises = getAllExercises();
 
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-
-            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-            camera.position.z = 5;
-
-            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-            renderer.setSize(width, height);
-            renderer.setPixelRatio(window.devicePixelRatio);
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 10, 7);
-            scene.add(directionalLight);
-
-            loadModel();
-            animate();
-
-            window.addEventListener('resize', onWindowResize);
-        }
-
-        function loadModel() {
-            console.log("開始加載模型...");
-
-            if (typeof THREE.GLTFLoader === 'undefined') {
-                console.error("THREE.GLTFLoader 未定義");
-                document.getElementById('model-status').textContent = "❌ GLTFLoader 未定義";
-                return;
+            if (currentCategory !== 'all') {
+                exercises = exercises.filter(e => e.category === currentCategory);
             }
 
-            const loader = new THREE.GLTFLoader();
+            exercises.forEach(exercise => {
+                const card = document.createElement('div');
+                card.className = 'exercise-card';
+                card.onclick = () => startExercise(exercise.id);
 
-            loader.load(
-                'models/pec.glb',
-                (gltf) => {
-                    console.log("模型加載成功!");
-                    const model = gltf.scene;
+                card.innerHTML = `
+                    <div class="card-image">
+                        <div class="card-icon">${exercise.icon}</div>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-category">${exercise.category}</div>
+                        <div class="card-title">${exercise.name}</div>
+                        <div class="card-description">${exercise.description}</div>
+                        <div class="card-footer">
+                            <span class="difficulty ${exercise.difficulty}">${exercise.difficulty}</span>
+                            <button class="btn-start">開始 →</button>
+                        </div>
+                    </div>
+                `;
 
-                    // 列出所有部位
-                    console.log("=== 模型結構 ===");
-                    const allParts = [];
-                    model.traverse((child) => {
-                        if (child.isMesh || child.isBone) {
-                            const info = {
-                                name: child.name,
-                                type: child.type,
-                                isMesh: child.isMesh,
-                                isBone: child.isBone
-                            };
-                            allParts.push(info);
-                            console.log(info);
-                        }
-                    });
-
-                    console.table(allParts);
-
-                    const box = new THREE.Box3().setFromObject(model);
-                    const size = box.getSize(new THREE.Vector3());
-                    const center = box.getCenter(new THREE.Vector3());
-
-                    model.position.sub(center);
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const scale = 4 / maxDim;
-                    model.scale.multiplyScalar(scale);
-
-                    scene.add(model);
-
-                    modelAnimator = {
-                        model: model,
-                        parts: allParts,
-                        isLoaded: true
-                    };
-
-                    document.getElementById('model-status').textContent = `✓ 已加載 (${allParts.length} 部位)`;
-                },
-                (progress) => {
-                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
-                    document.getElementById('model-status').textContent = `📦 加載中: ${percent}%`;
-                },
-                (error) => {
-                    console.error('模型加載失敗:', error);
-                    document.getElementById('model-status').textContent = "❌ 加載失敗";
-                }
-            );
+                grid.appendChild(card);
+            });
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
+        function filterByCategory(category) {
+            currentCategory = category;
 
-            fpsCounter.frameCount++;
-            const currentTime = performance.now();
-            if (currentTime - fpsCounter.lastTime >= 1000) {
-                fpsCounter.fps = fpsCounter.frameCount;
-                fpsCounter.frameCount = 0;
-                fpsCounter.lastTime = currentTime;
-                document.getElementById('fps').textContent = fpsCounter.fps;
-            }
+            // 更新按鈕狀態
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
 
-            if (modelAnimator && modelAnimator.model) {
-                modelAnimator.model.rotation.y += 0.002;
-            }
-
-            if (renderer && scene && camera) {
-                renderer.render(scene, camera);
-            }
+            renderExercises();
         }
 
-        function onWindowResize() {
-            const canvas = document.getElementById('canvas-3d');
-            if (!canvas || !renderer || !camera) return;
-
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
+        function startExercise(exerciseId) {
+            // 導向到動作詳情頁
+            window.location.href = `exercise.html?id=${exerciseId}`;
         }
 
-        function connectPhone() {
-            const phoneId = document.getElementById('phone-id').value.trim();
-            if (!phoneId) {
-                alert("請輸入手機 ID");
-                return;
-            }
-            console.log(`連線到: ${phoneId}`);
-        }
-
-        function disconnectPhone() {
-            console.log("已斷開");
-        }
-
-        myPeer.on('open', (id) => {
-            console.log('監控端 Peer ID: ' + id);
-        });
-
+        // 頁面載入時渲染
         document.addEventListener('DOMContentLoaded', () => {
-            initThreeJS();
+            renderExercises();
         });
     </script>
 </body>
