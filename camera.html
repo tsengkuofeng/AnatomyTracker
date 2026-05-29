@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AnatomyTracker - 鏡頭端</title>
+    <title>AnatomyTracker - 手機端</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
@@ -11,195 +11,310 @@
 
     <style>
         :root {
-            --bg-color: #FAF9F6;
-            --accent-color: #800020;
-            --text-color: #333333;
+            --primary: #667eea;
+            --secondary: #764ba2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: sans-serif;
-            margin: 0;
-            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            height: 100%;
         }
 
-        h2 {
-            color: var(--accent-color);
-            font-weight: 700;
-            margin-bottom: 20px;
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            padding: 20px;
+            text-align: center;
+            flex-shrink: 0;
         }
 
-        .card {
-            background: white;
-            width: 100%;
-            max-width: 500px;
+        header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 設定卡片 */
+        .setup-card {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid var(--primary);
             border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            min-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+
+        .setup-card h2 {
             margin-bottom: 20px;
-            box-sizing: border-box;
-            border-top: 4px solid var(--accent-color);
+            color: var(--primary);
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            text-align: left;
         }
 
-        label {
+        .form-group label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            font-size: 14px;
-            color: #555;
-        }
-
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            background: #fff;
-            outline: none;
-        }
-
-        button {
-            background-color: var(--accent-color);
-            color: white;
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        button:active {
+            margin-bottom: 5px;
+            font-size: 12px;
             opacity: 0.8;
         }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--primary);
+            color: white;
+            border-radius: 6px;
+            font-size: 14px;
         }
 
-        #id-container {
-            display: none;
+        .form-group select option {
+            background: #1a1a1a;
+            color: white;
         }
 
-        .big-id {
-            font-size: 48px;
-            color: var(--accent-color);
-            font-weight: 800;
-            letter-spacing: 8px;
-            margin: 20px 0;
-            background: #f4f4f4;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            font-family: monospace;
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 15px;
         }
 
-        .video-container {
+        .btn:hover {
+            transform: scale(1.02);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* 視訊容器 */
+        .video-wrapper {
             position: relative;
             width: 100%;
-            margin-top: 20px;
-            border-radius: 8px;
+            height: 100%;
             overflow: hidden;
             background: #000;
         }
 
-        video {
+        #localVideo {
             width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 連線信息 */
+        .info-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
             border-radius: 8px;
-            background: #000;
-            display: block;
+            backdrop-filter: blur(10px);
+            border-left: 4px solid var(--primary);
         }
 
-        output_canvas {
-            width: 100%;
-            display: block;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 8px 16px;
-            background: #eee;
-            border-radius: 20px;
-            font-size: 13px;
-            color: #666;
-            margin-top: 10px;
-            font-weight: 500;
-        }
-
-        .status-badge.connected {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .footer-info {
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
             font-size: 12px;
-            color: #999;
-            margin-top: auto;
+        }
+
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.connected {
+            background: #00ff00;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .id-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-align: right;
+            border: 2px solid var(--primary);
+            backdrop-filter: blur(10px);
+        }
+
+        .id-display .label {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .id-display .id {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary);
+            font-family: monospace;
+            letter-spacing: 3px;
+        }
+
+        .hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .hint h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .hint p {
+            font-size: 14px;
+            opacity: 0.7;
         }
     </style>
 </head>
 <body>
-    <h2>📱 AnatomyTracker 鏡頭端</h2>
+    <div class="container">
+        <header>
+            <h1>📱 AnatomyTracker 手機端</h1>
+            <p>動作捕捉與關鍵點檢測</p>
+        </header>
 
-    <div class="card" id="settings-card">
-        <div class="form-group">
-            <label>1. 訓練類型</label>
-            <select id="exercise-type">
-                <option value="squat">深蹲 (Squat)</option>
-                <option value="deadlift">硬舉 (Deadlift)</option>
-                <option value="pushup">伏地挺身 (Pushup)</option>
-                <option value="pullup">引體向上 (Pullup)</option>
-            </select>
+        <div class="content">
+            <!-- 設定卡片 -->
+            <div class="setup-card" id="setupPanel">
+                <h2>準備開始</h2>
+
+                <div class="form-group">
+                    <label>訓練類型</label>
+                    <select id="exerciseType">
+                        <option value="chest-push">胸推 (Chest Push)</option>
+                        <option value="squat">深蹲 (Squat)</option>
+                        <option value="deadlift">硬舉 (Deadlift)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>拍攝角度</label>
+                    <select id="cameraAngle">
+                        <option value="side">側面觀 (Side)</option>
+                        <option value="front">正面觀 (Front)</option>
+                        <option value="back">背面觀 (Back)</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="startCamera()">🎥 開啟攝像頭</button>
+            </div>
+
+            <!-- 視訊區域 -->
+            <div class="video-wrapper" id="videoWrapper" style="display: none;">
+                <video id="localVideo" autoplay muted playsinline></video>
+                <canvas id="output_canvas"></canvas>
+
+                <!-- 連線信息 -->
+                <div class="info-overlay">
+                    <div class="info-item">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">啟動中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span>🎯 節點檢測中</span>
+                    </div>
+                    <div class="info-item">
+                        <span>📡 等待連線...</span>
+                    </div>
+                </div>
+
+                <!-- ID 顯示 -->
+                <div class="id-display" id="idDisplay" style="display: none;">
+                    <div class="label">你的 ID</div>
+                    <div class="id" id="peerId">...</div>
+                </div>
+
+                <!-- 提示文字 -->
+                <div class="hint" id="hint">
+                    <h3>正在初始化...</h3>
+                    <p>請稍候</p>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label>2. 拍攝角度</label>
-            <select id="camera-angle">
-                <option value="side">側面觀 (Side View)</option>
-                <option value="back">背面觀 (Back View)</option>
-                <option value="front">正面觀 (Front View)</option>
-            </select>
-        </div>
-        <button onclick="initCamera()">🎥 啟動鏡頭</button>
     </div>
-
-    <div class="card" id="id-container">
-        <label>請將此 ID 輸入至電腦端：</label>
-        <div class="big-id" id="my-peer-id">...</div>
-        <div class="status-badge" id="conn-status">啟動中...</div>
-
-        <div class="video-container">
-            <video id="localVideo" autoplay muted playsinline></video>
-            <canvas id="output_canvas" style="position:absolute; top:0; left:0; width:100%; display:none;"></canvas>
-        </div>
-
-        <p style="font-size:12px; color:#888; margin-top:15px; text-align:center;">
-            ✓ 鏡頭已開啟<br>
-            ✓ 節點檢測中<br>
-            請保持手機開啟
-        </p>
-    </div>
-
-    <div class="footer-info">&copy; 2026 AnatomyTracker - 鏡頭端</div>
 
     <script>
         let peer;
         let localStream;
         let currentCall = null;
-        let pose = null;
 
         function generateShortId() {
             return Math.floor(1000 + Math.random() * 9000).toString();
@@ -210,8 +325,10 @@
             peer = new Peer(shortId);
 
             peer.on('open', (id) => {
-                document.getElementById('my-peer-id').innerText = id;
-                document.getElementById('conn-status').innerText = "等待電腦連線...";
+                console.log('手機端 Peer ID: ' + id);
+                document.getElementById('peerId').textContent = id;
+                document.getElementById('idDisplay').style.display = 'block';
+                updateHint('等待電腦連線', '將 ID 輸入到電腦的演講模式');
             });
 
             peer.on('error', (err) => {
@@ -219,14 +336,15 @@
                     peer.destroy();
                     setTimeout(initPeer, 200);
                 } else {
-                    alert("連線錯誤: " + err.type);
+                    console.error("Peer 錯誤:", err);
+                    updateStatus('連線錯誤', false);
                 }
             });
 
             peer.on('connection', (conn) => {
-                const badge = document.getElementById('conn-status');
-                badge.innerText = "✅ 已連線至監控台";
-                badge.classList.add('connected');
+                console.log("電腦已連接");
+                updateStatus('已連線至電腦', true);
+                updateHint('🎉 連線成功', '開始做動作吧！');
 
                 if(localStream) {
                     currentCall = peer.call(conn.peer, localStream);
@@ -236,22 +354,25 @@
             peer.on('call', (call) => {
                 call.answer(localStream);
                 currentCall = call;
+                updateStatus('已連線至電腦', true);
             });
         }
 
-        async function initCamera() {
-            const settingsCard = document.getElementById('settings-card');
-            const idContainer = document.getElementById('id-container');
-            const statusBadge = document.getElementById('conn-status');
+        async function startCamera() {
+            const setupPanel = document.getElementById('setupPanel');
+            const videoWrapper = document.getElementById('videoWrapper');
+            const statusDot = document.getElementById('statusDot');
 
-            settingsCard.style.display = 'none';
-            idContainer.style.display = 'block';
-            statusBadge.innerText = "正在請求相機權限...";
+            setupPanel.style.display = 'none';
+            videoWrapper.style.display = 'block';
+
+            updateStatus('正在請求相機權限...', false);
+            updateHint('正在初始化...', '請稍候');
 
             try {
                 const constraints = {
                     video: {
-                        facingMode: 'environment',
+                        facingMode: 'user',
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     },
@@ -263,50 +384,93 @@
                 const videoEl = document.getElementById('localVideo');
                 videoEl.srcObject = localStream;
 
-                statusBadge.innerText = "相機就緒，正在獲取 ID...";
+                updateStatus('相機就緒，初始化中...', false);
+                updateHint('初始化 MediaPipe...', '');
 
                 // 初始化 MediaPipe Pose
-                initPoseDetection();
+                await initPoseDetection();
 
                 // 初始化 PeerJS
+                updateStatus('等待電腦連線...', false);
+                updateHint('正在生成 ID...', '');
                 initPeer();
 
             } catch (err) {
                 console.error(err);
-                alert("無法開啟相機，請確認權限。");
+                updateStatus('無法開啟相機', false);
+                updateHint('❌ 錯誤', '請確認相機權限');
+                alert("無法開啟相機，請確認權限設置。");
             }
         }
 
         function initPoseDetection() {
-            const videoEl = document.getElementById('localVideo');
-            const canvasEl = document.getElementById('output_canvas');
+            return new Promise((resolve, reject) => {
+                const videoEl = document.getElementById('localVideo');
+                const canvasEl = document.getElementById('output_canvas');
 
-            pose = new Pose({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-            });
+                const pose = new Pose({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+                });
 
-            pose.setOptions({
-                modelComplexity: 1,
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
+                pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
 
-            pose.onResults((results) => {
-                // 可以在這裡進行骨骼繪製
-                // drawSkeleton(canvasEl, results);
-            });
+                pose.onResults((results) => {
+                    // 繪製骨骼
+                    const ctx = canvasEl.getContext('2d');
+                    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+                    ctx.drawImage(results.image, 0, 0);
 
-            async function detectFrame() {
-                if (videoEl.videoWidth > 0) {
-                    canvasEl.width = videoEl.videoWidth;
-                    canvasEl.height = videoEl.videoHeight;
-                    await pose.send({ image: videoEl });
+                    if (results.poseLandmarks) {
+                        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS,
+                            { color: '#667eea', lineWidth: 2 });
+                        drawLandmarks(ctx, results.poseLandmarks,
+                            { color: '#ff6b6b', radius: 3 });
+                    }
+                });
+
+                async function detectFrame() {
+                    if (videoEl.videoWidth > 0) {
+                        canvasEl.width = videoEl.videoWidth;
+                        canvasEl.height = videoEl.videoHeight;
+                        await pose.send({ image: videoEl });
+                    }
+                    requestAnimationFrame(detectFrame);
                 }
-                requestAnimationFrame(detectFrame);
-            }
 
-            detectFrame();
+                videoEl.onloadedmetadata = () => {
+                    console.log("視訊已加載");
+                    updateStatus('姿勢檢測就緒', false);
+                    updateHint('準備完成！', '等待電腦連線...');
+                    resolve();
+                    detectFrame();
+                };
+
+                videoEl.onerror = () => {
+                    reject(new Error("視訊加載失敗"));
+                };
+            });
+        }
+
+        function updateStatus(text, connected) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            statusText.textContent = text;
+            if (connected) {
+                statusDot.classList.add('connected');
+            } else {
+                statusDot.classList.remove('connected');
+            }
+        }
+
+        function updateHint(title, subtitle) {
+            const hint = document.getElementById('hint');
+            hint.innerHTML = `<h3>${title}</h3><p>${subtitle}</p>`;
         }
     </script>
 </body>

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnatomyTracker - 演講模式</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="js/exercises.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .presentation-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            gap: 0;
+        }
+
+        /* 左側：大型 3D 模型（80%） */
+        #canvas-3d {
+            flex: 4;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px 30px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .canvas-overlay h2 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .canvas-overlay p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* 右側：動作數據（20%） */
+        .data-panel {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            border-left: 2px solid #667eea;
+            overflow-y: auto;
+        }
+
+        .exercise-title {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .metric {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .metric.active {
+            background: rgba(102, 126, 234, 0.2);
+            border-left-color: #ffaa00;
+            transform: scale(1.05);
+        }
+
+        .metric-label {
+            font-size: 11px;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 40px;
+            font-weight: bold;
+            color: #667eea;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .metric.active .metric-value {
+            color: #ffaa00;
+            text-shadow: 0 0 20px #ffaa00;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.1s ease-out;
+            border-radius: 3px;
+        }
+
+        .metric.active .progress-fill {
+            background: linear-gradient(90deg, #ffaa00 0%, #ff6b00 100%);
+            box-shadow: 0 0 10px #ffaa00;
+        }
+
+        .muscle-hint {
+            font-size: 12px;
+            margin-top: 8px;
+            color: #aaa;
+            font-style: italic;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #00ff00;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .rep-counter {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 170, 0, 0.1);
+            border: 2px solid #ffaa00;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .rep-counter .metric-label {
+            margin-bottom: 10px;
+        }
+
+        .rep-counter .metric-value {
+            color: #ffaa00;
+            font-size: 48px;
+        }
+
+        /* 響應式 */
+        @media (max-width: 1200px) {
+            .presentation-container {
+                flex-direction: column;
+            }
+
+            #canvas-3d {
+                flex: 2;
+            }
+
+            .data-panel {
+                flex: 1;
+                border-left: none;
+                border-top: 2px solid #667eea;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <!-- 左側：3D 模型 -->
+        <canvas id="canvas-3d">
+            <div class="canvas-overlay">
+                <h2 id="overlayTitle">胸推</h2>
+                <p>前方手機連線: <span id="phoneStatus">未連線</span></p>
+            </div>
+        </canvas>
+
+        <!-- 右側：動作數據 -->
+        <div class="data-panel">
+            <div class="exercise-title" id="title">胸推</div>
+
+            <!-- 推進進度 -->
+            <div class="metric" id="metricPush">
+                <div class="metric-label">推進進度</div>
+                <div class="metric-value" id="pushProgress">0%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+            </div>
+
+            <!-- 手臂角度 -->
+            <div class="metric" id="metricAngle">
+                <div class="metric-label">手臂角度</div>
+                <div class="metric-value" id="armAngle">0°</div>
+                <div class="muscle-hint" id="angleHint">放鬆狀態</div>
+            </div>
+
+            <!-- 肌肉激活 -->
+            <div class="metric" id="metricMuscle">
+                <div class="metric-label">胸肌激活</div>
+                <div class="metric-value" id="muscleActive">待命</div>
+                <div class="muscle-hint" id="muscleHint">等待動作信號...</div>
+            </div>
+
+            <!-- 連線狀態 -->
+            <div class="metric">
+                <div class="metric-label">手機連線</div>
+                <div class="connection-status">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="connectionText">未連線</span>
+                </div>
+                <input 
+                    type="text" 
+                    id="phoneIdInput" 
+                    placeholder="輸入手機ID" 
+                    style="
+                        width: 100%;
+                        padding: 8px;
+                        margin-top: 8px;
+                        background: rgba(255, 255, 255, 0.1);
+                        border: 1px solid #667eea;
+                        color: white;
+                        border-radius: 4px;
+                        text-align: center;
+                    "
+                >
+                <button 
+                    onclick="connectPhone()"
+                    style="
+                        width: 100%;
+                        padding: 8px;
+                        margin-top: 8px;
+                        background: #667eea;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-weight: bold;
+                    "
+                >
+                    連線
+                </button>
+            </div>
+
+            <!-- 次數計數 -->
+            <div class="rep-counter">
+                <div class="metric-label">目前進度</div>
+                <div class="metric-value" id="repCounter">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 全局變數 ==========
+        let myPeer = new Peer();
+        let scene, camera, renderer;
+        let modelParts = {};
+        let lastPoseData = null;
+        let isConnected = false;
+        let fpsCounter = { fps: 0, frameCount: 0, lastTime: performance.now() };
+
+        // ========== Three.js 初始化 ==========
+        function initThreeJS() {
+            const canvas = document.getElementById('canvas-3d');
+            
+            scene = new THREE.Scene();
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.z = 5;
+            
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            
+            // 燈光設置
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 15, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            loadModel();
+            animate();
+            
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // ========== 加載 3D 模型 ==========
+        function loadModel() {
+            console.log("開始加載模型...");
+            
+            if (typeof THREE.GLTFLoader === 'undefined') {
+                console.error("THREE.GLTFLoader 未定義");
+                return;
+            }
+            
+            const loader = new THREE.GLTFLoader();
+            
+            loader.load(
+                'models/pec.glb',
+                (gltf) => {
+                    console.log("模型加載成功!");
+                    const model = gltf.scene;
+                    
+                    // 調整模型大小和位置
+                    const box = new THREE.Box3().setFromObject(model);
+                    const size = box.getSize(new THREE.Vector3());
+                    const center = box.getCenter(new THREE.Vector3());
+                    
+                    model.position.sub(center);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scale = 4 / maxDim;
+                    model.scale.multiplyScalar(scale);
+                    
+                    scene.add(model);
+                    
+                    // 收集所有部位
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            modelParts[child.name] = child;
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
+                    console.log("已加載部位:", Object.keys(modelParts));
+                },
+                (progress) => {
+                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                    console.log(`模型加載中: ${percent}%`);
+                },
+                (error) => {
+                    console.error('模型加載失敗:', error);
+                }
+            );
+        }
+
+        // ========== 連線手機 ==========
+        function connectPhone() {
+            const phoneId = document.getElementById('phoneIdInput').value.trim();
+            if (!phoneId) {
+                alert("請輸入手機 ID");
+                return;
+            }
+
+            console.log(`嘗試連線到: ${phoneId}`);
+            
+            const conn = myPeer.connect(phoneId);
+            
+            conn.on('open', () => {
+                console.log("數據連線已建立");
+                document.getElementById('connectionText').textContent = '連接中...';
+            });
+            
+            conn.on('error', (err) => {
+                console.error("連線錯誤:", err);
+                updateConnectionStatus(false);
+            });
+            
+            myPeer.on('call', (call) => {
+                if (call.peer === phoneId) {
+                    console.log("收到視訊呼叫");
+                    call.answer();
+                    call.on('stream', (stream) => {
+                        console.log("收到數據串流");
+                        setupVideoStream(stream);
+                    });
+                    updateConnectionStatus(true);
+                }
+            });
+        }
+
+        // ========== 設置視訊串流 ==========
+        function setupVideoStream(stream) {
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.style.display = 'none';
+            
+            const canvas = document.createElement('canvas');
+            document.body.appendChild(canvas);
+            canvas.style.display = 'none';
+            
+            initPoseDetection(video, canvas);
+        }
+
+        // ========== 初始化姿勢檢測 ==========
+        function initPoseDetection(video, canvas) {
+            const pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+            
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            pose.onResults((results) => {
+                if (results.poseLandmarks) {
+                    lastPoseData = results.poseLandmarks;
+                }
+            });
+
+            async function detectFrame() {
+                if (video.videoWidth > 0 && canvas) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    await pose.send({ image: video });
+                }
+                requestAnimationFrame(detectFrame);
+            }
+            
+            detectFrame();
+        }
+
+        // ========== 動畫循環 ==========
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 更新 FPS
+            fpsCounter.frameCount++;
+            const currentTime = performance.now();
+            if (currentTime - fpsCounter.lastTime >= 1000) {
+                fpsCounter.fps = fpsCounter.frameCount;
+                fpsCounter.frameCount = 0;
+                fpsCounter.lastTime = currentTime;
+            }
+            
+            // 應用動作
+            if (lastPoseData && Object.keys(modelParts).length > 0) {
+                const result = animateChestPush(lastPoseData, modelParts);
+                updateUIMetrics(result);
+            } else {
+                // 模型默認旋轉
+                if (modelParts && Object.values(modelParts)[0]) {
+                    Object.values(modelParts).forEach(part => {
+                        part.rotation.y += 0.005;
+                    });
+                }
+            }
+            
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        // ========== 更新 UI 指標 ==========
+        function updateUIMetrics(result) {
+            const pushProgress = Math.round(result.pushProgress * 100);
+            const armAngleDeg = Math.round(result.armAngle * 57.3);
+            
+            // 更新推進進度
+            document.getElementById('pushProgress').textContent = pushProgress + '%';
+            document.getElementById('progressBar').style.width = pushProgress + '%';
+            document.getElementById('repCounter').textContent = pushProgress + '%';
+            
+            // 更新手臂角度
+            document.getElementById('armAngle').textContent = armAngleDeg + '°';
+            
+            // 更新肌肉激活狀態
+            const metricPush = document.getElementById('metricPush');
+            const metricAngle = document.getElementById('metricAngle');
+            const metricMuscle = document.getElementById('metricMuscle');
+            
+            if (pushProgress > 30) {
+                metricPush.classList.add('active');
+                document.getElementById('muscleActive').textContent = '🔥 激活中';
+                document.getElementById('muscleHint').textContent = '胸大肌強烈收縮';
+                metricMuscle.classList.add('active');
+            } else {
+                metricPush.classList.remove('active');
+                metricMuscle.classList.remove('active');
+                document.getElementById('muscleActive').textContent = '💪 準備';
+                document.getElementById('muscleHint').textContent = '推進開始...';
+            }
+            
+            if (armAngleDeg < 90) {
+                metricAngle.classList.add('active');
+                document.getElementById('angleHint').textContent = '手臂伸展中';
+            } else {
+                metricAngle.classList.remove('active');
+                document.getElementById('angleHint').textContent = '準備推進';
+            }
+        }
+
+        // ========== 更新連線狀態 ==========
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('connectionText');
+            
+            if (connected) {
+                indicator.classList.add('connected');
+                text.textContent = '已連線 ✓';
+                document.getElementById('phoneStatus').textContent = '已連線';
+            } else {
+                indicator.classList.remove('connected');
+                text.textContent = '未連線';
+                document.getElementById('phoneStatus').textContent = '未連線';
+            }
+        }
+
+        // ========== 窗口調整 ==========
+        function onWindowResize() {
+            const canvas = document.getElementById('canvas-3d');
+            if (!canvas || !renderer || !camera) return;
+            
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        // ========== 初始化 ==========
+        myPeer.on('open', (id) => {
+            console.log('演講模式 Peer ID: ' + id);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initThreeJS();
+        });
+    </script>
+</body>
+</html>
