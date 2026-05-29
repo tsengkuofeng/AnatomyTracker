@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnatomyTracker - 3D解剖模型動作追蹤</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container"></div>
+        <div id="info-panel">
+            <h1>AnatomyTracker</h1>
+            <div id="status">準備中...</div>
+            <div id="fps">FPS: 0</div>
+            <div id="pose-info">檢測到的節點: 0</div>
+            <button id="toggle-camera">開啟鏡頭</button>
+            <button id="toggle-debug">調試模式</button>
+            <div id="camera-container" style="display:none;">
+                <video id="video" width="320" height="240"></video>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+    <!-- GLTFLoader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- 專案代碼 -->
+    <script src="js/utils.js"></script>
+    <script src="js/pose-detector.js"></script>
+    <script src="js/model-animator.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

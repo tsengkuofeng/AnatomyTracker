@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnatomyTracker - 監控端</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #FAF9F6;
+            --accent-color: #800020;
+            --text-color: #333333;
+            --gray-light: #E0E0E0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #disclaimer-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            padding: 40px;
+            border-radius: 8px;
+            max-width: 500px;
+            text-align: center;
+            border-top: 5px solid var(--accent-color);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        header {
+            text-align: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--gray-light);
+            background: white;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 700;
+            color: var(--text-color);
+            font-size: 24px;
+        }
+
+        .subtitle {
+            color: var(--accent-color);
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            gap: 2px;
+            background: #000;
+        }
+
+        /* 左側：視訊牆 */
+        #video-container {
+            flex: 1;
+            position: relative;
+            background: #111;
+            overflow: hidden;
+        }
+
+        .video-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* 右側：Three.js 3D 模型 */
+        #canvas-3d {
+            flex: 1;
+            background: #34495e;
+        }
+
+        /* 設定面板 */
+        .setup-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            margin: 20px auto;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+        }
+
+        .option-btn {
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+            margin: 5px;
+        }
+
+        .option-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .input-group {
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 20;
+            min-width: 200px;
+        }
+
+        .info-panel div {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="disclaimer-modal">
+        <div class="modal-content">
+            <h2 style="color:var(--accent-color); margin-top:0;">AnatomyTracker 使用聲明</h2>
+            <p style="text-align:left; line-height:1.6; color:#555;">
+                本系統使用 AI 進行動作分析與 3D 可視化，純供訓練參考。<br>
+                如有身體不適，請停止使用並諮詢專業人士。
+            </p>
+            <button class="btn-primary" onclick="closeModal()">我了解，繼續</button>
+        </div>
+    </div>
+
+    <header>
+        <h1>AnatomyTracker</h1>
+        <div class="subtitle">3D 解剖模型動作追蹤監控台</div>
+    </header>
+
+    <div class="main-container">
+        <div class="setup-card" id="setup-panel">
+            <h3>連線設定</h3>
+            <p>請輸入鏡頭端 ID：</p>
+
+            <div class="input-group">
+                <label>手機 ID</label>
+                <input type="text" id="cam-id" placeholder="輸入手機上的 4 位數 ID">
+            </div>
+
+            <button class="btn-primary" onclick="startSystem()">開始連線</button>
+        </div>
+
+        <div id="video-container">
+            <div class="info-panel">
+                <div id="status">準備中...</div>
+                <div id="fps">FPS: 0</div>
+                <div id="pose-info">檢測到的節點: 0</div>
+            </div>
+        </div>
+
+        <canvas id="canvas-3d"></canvas>
+    </div>
+
+    <script>
+        // ========== 全局變數 ==========
+        let myPeer = new Peer();
+        let videoElement = null;
+        let canvasElement = null;
+        let pose = null;
+        let scene, camera, renderer;
+        let modelAnimator = null;
+        let fpsCounter = { fps: 0, frameCount: 0, lastTime: performance.now() };
+        let lastPoseData = null;
+
+        function closeModal() {
+            document.getElementById('disclaimer-modal').style.display = 'none';
+        }
+
+        // ========== 系統啟動 ==========
+        function startSystem() {
+            const camId = document.getElementById('cam-id').value;
+            if (!camId) return alert("請輸入 ID");
+
+            document.getElementById('setup-panel').style.display = 'none';
+
+            // 建立 Three.js 場景
+            initThreeJS();
+
+            // 連線到遠端手機
+            connectToCamera(camId);
+        }
+
+        // ========== Three.js 初始化 ==========
+        function initThreeJS() {
+            const canvas = document.getElementById('canvas-3d');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x34495e);
+
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            // 燈光
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7);
+            scene.add(directionalLight);
+
+            // 加載模型
+            loadModel();
+
+            // 動畫循環
+            animate();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // ========== 加載 3D 模型 ==========
+        async function loadModel() {
+            const loader = new THREE.GLTFLoader();
+
+            try {
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load('models/pec.glb', resolve, undefined, reject);
+                });
+
+                const model = gltf.scene;
+                scene.add(model);
+
+                // 初始化模型動畫器（可擴展）
+                modelAnimator = {
+                    model: model,
+                    bones: {},
+                    isLoaded: true
+                };
+
+                // 收集骨骼
+                model.traverse((node) => {
+                    if (node.isBone) {
+                        modelAnimator.bones[node.name] = node;
+                    }
+                });
+
+                document.getElementById('status').textContent = "✓ 模型已加載";
+
+            } catch (error) {
+                console.error('模型加載失敗:', error);
+                document.getElementById('status').textContent = "✗ 模型加載失敗";
+            }
+        }
+
+        // ========== 連線到遠端鏡頭 ==========
+        function connectToCamera(targetId) {
+            const conn = myPeer.connect(targetId);
+
+            myPeer.on('call', (call) => {
+                if (call.peer === targetId) {
+                    call.answer();
+                    call.on('stream', (remoteStream) => {
+                        setupVideo(remoteStream);
+                        document.getElementById('status').textContent = "✓ 已連線";
+                    });
+                }
+            });
+        }
+
+        // ========== 設置視訊元素 ==========
+        function setupVideo(stream) {
+            // 建立 video 和 canvas
+            const videoContainer = document.getElementById('video-container');
+
+            videoElement = document.createElement('video');
+            videoElement.id = 'remote-video';
+            videoElement.autoplay = true;
+            videoElement.playsinline = true;
+            videoElement.srcObject = stream;
+
+            canvasElement = document.createElement('canvas');
+            canvasElement.className = 'output_canvas';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'video-wrapper';
+            wrapper.appendChild(videoElement);
+            wrapper.appendChild(canvasElement);
+            videoContainer.appendChild(wrapper);
+
+            // 初始化 MediaPipe Pose
+            initPoseDetection();
+        }
+
+        // ========== 初始化姿勢檢測 ==========
+        function initPoseDetection() {
+            pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+            });
+
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            pose.onResults((results) => {
+                drawSkeleton(results);
+
+                // 提取姿勢數據
+                if (results.poseLandmarks) {
+                    lastPoseData = results.poseLandmarks;
+                    document.getElementById('pose-info').textContent =
+                        `檢測到的節點: ${results.poseLandmarks.length}`;
+                }
+            });
+
+            detectFrame();
+        }
+
+        async function detectFrame() {
+            if (!videoElement || !canvasElement) return;
+
+            if (videoElement.videoWidth) {
+                canvasElement.width = videoElement.videoWidth;
+                canvasElement.height = videoElement.videoHeight;
+                await pose.send({ image: videoElement });
+            }
+
+            requestAnimationFrame(detectFrame);
+        }
+
+        // ========== 繪製骨骼 ==========
+        function drawSkeleton(results) {
+            const ctx = canvasElement.getContext('2d');
+            const width = canvasElement.width;
+            const height = canvasElement.height;
+
+            ctx.save();
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(results.image, 0, 0, width, height);
+
+            if (results.poseLandmarks) {
+                drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS,
+                    { color: '#FFFFFF', lineWidth: 3 });
+                drawLandmarks(ctx, results.poseLandmarks,
+                    { color: '#800020', lineWidth: 1, radius: 5 });
+            }
+
+            ctx.restore();
+        }
+
+        // ========== 動畫循環 ==========
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 更新 FPS
+            fpsCounter.frameCount++;
+            const currentTime = performance.now();
+            if (currentTime - fpsCounter.lastTime >= 1000) {
+                fpsCounter.fps = fpsCounter.frameCount;
+                fpsCounter.frameCount = 0;
+                fpsCounter.lastTime = currentTime;
+                document.getElementById('fps').textContent = `FPS: ${fpsCounter.fps}`;
+            }
+
+            // 旋轉模型
+            if (modelAnimator && modelAnimator.model) {
+                modelAnimator.model.rotation.y += 0.002;
+
+                // 這裡可以添加骨骼動畫邏輯
+                if (lastPoseData) {
+                    // TODO: 應用姿勢到骨骼
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const canvas = document.getElementById('canvas-3d');
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        // 在頁面加載時禁用模型容器
+        window.addEventListener('load', () => {
+            document.getElementById('canvas-3d').style.display = 'none';
+        });
+
+        // 記錄 PeerJS 連接事件
+        myPeer.on('open', (id) => {
+            console.log('My peer ID is: ' + id);
+        });
+    </script>
+</body>
+</html>
