@@ -315,6 +315,7 @@
         let peer;
         let localStream;
         let currentCall = null;
+        let dataConn = null;
 
         function generateShortId() {
             return Math.floor(1000 + Math.random() * 9000).toString();
@@ -342,6 +343,7 @@
             });
 
             peer.on('connection', (conn) => {
+                dataConn = conn;
                 console.log("電腦已連接");
                 updateStatus('已連線至電腦', true);
                 updateHint('🎉 連線成功', '開始做動作吧！');
@@ -430,6 +432,14 @@
                             { color: '#667eea', lineWidth: 2 });
                         drawLandmarks(ctx, results.poseLandmarks,
                             { color: '#ff6b6b', radius: 3 });
+
+                        // 傳送姿勢數據給電腦
+                        if (dataConn && dataConn.open) {
+                            dataConn.send({
+                                type: 'pose',
+                                landmarks: results.poseLandmarks
+                            });
+                        }
                     }
                 });
 

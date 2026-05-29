@@ -574,6 +574,14 @@
             console.log('演講模式 Peer ID: ' + id);
         });
 
+        myPeer.on('connection', (conn) => {
+        conn.on('data', (data) => {
+            if (data.type === 'pose') {
+                lastPoseData = data.landmarks;
+            }
+        });
+    });
+
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
