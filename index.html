@@ -4,28 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AnatomyTracker - 選擇動作</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/cards.css">
     <script src="js/exercises.js"></script>
-</head>
-<body>
-    <header>
-        <h1>🧬 AnatomyTracker</h1>
-        <div class="subtitle">選擇要追蹤的動作</div>
-    </header>
-
-    <div class="container">
-        <!-- 分類標籤 -->
-        <div class="category-tabs">
-            <button class="tab-btn active" onclick="filterByCategory('all')">全部</button>
-            <button class="tab-btn" onclick="filterByCategory('chest')">胸部</button>
-            <button class="tab-btn" onclick="filterByCategory('back')">背部</button>
-            <button class="tab-btn" onclick="filterByCategory('legs')">腿部</button>
-        </div>
-
-        <!-- 動作卡片網格 -->
-        <div class="exercises-grid" id="exercisesGrid"></div>
-    </div>
 
     <style>
         * {
@@ -35,223 +14,282 @@
         }
 
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: "Helvetica Neue", Arial, sans-serif;
-            color: #333;
-        }
-
-        header {
-            text-align: center;
-            padding: 40px 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            min-height: 100vh;
+            padding: 40px 20px;
         }
 
-        header h1 {
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
             font-size: 48px;
             margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             font-weight: 800;
+            letter-spacing: 2px;
         }
 
-        .subtitle {
+        .header p {
             font-size: 16px;
-            opacity: 0.9;
+            opacity: 0.8;
+            color: #aaa;
         }
 
-        .container {
-            max-width: 1200px;
+        .carousel-container {
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            position: relative;
         }
 
-        /* 分類標籤 */
-        .category-tabs {
+        .carousel {
             display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 40px;
-            flex-wrap: wrap;
-        }
-
-        .tab-btn {
-            padding: 12px 24px;
-            border: 2px solid white;
-            background: transparent;
-            color: white;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .tab-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .tab-btn.active {
-            background: white;
-            color: #667eea;
-        }
-
-        /* 卡片網格 */
-        .exercises-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 30px;
-            margin-bottom: 50px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            padding: 20px 0;
+            scroll-padding: 20px;
+            /* 隱藏滾動條 */
+            scrollbar-width: none;
         }
 
-        /* 卡片樣式 */
+        .carousel::-webkit-scrollbar {
+            display: none;
+        }
+
         .exercise-card {
-            background: white;
-            border-radius: 16px;
+            flex: 0 0 calc(100% / 3 - 20px);
+            min-width: 350px;
+            aspect-ratio: 9 / 10;
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid #667eea;
+            border-radius: 20px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
+            position: relative;
+            backdrop-filter: blur(10px);
         }
 
         .exercise-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            transform: translateY(-20px) scale(1.05);
+            border-color: #764ba2;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+            background: rgba(102, 126, 234, 0.2);
         }
 
-        .card-image {
-            width: 100%;
-            height: 200px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 80px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .card-image::before {
+        .exercise-card::before {
             content: '';
             position: absolute;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 50px 50px;
-            animation: moveBackground 20s linear infinite;
+            top: -50%;
+            right: -50%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(118, 75, 162, 0.3) 0%, transparent 70%);
+            transition: all 0.4s;
         }
 
-        @keyframes moveBackground {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(50px, 50px); }
-        }
-
-        .card-icon {
-            font-size: 60px;
-            z-index: 1;
+        .exercise-card:hover::before {
+            top: -30%;
+            right: -30%;
         }
 
         .card-content {
-            padding: 20px;
-            flex: 1;
+            position: relative;
+            z-index: 1;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            padding: 40px 30px;
+        }
+
+        .card-icon {
+            font-size: 120px;
+            text-align: center;
+            margin: 20px 0;
+            filter: drop-shadow(0 10px 20px rgba(102, 126, 234, 0.3));
         }
 
         .card-title {
-            font-size: 18px;
+            font-size: 28px;
             font-weight: 700;
-            color: #333;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
+            color: #667eea;
         }
 
         .card-category {
             font-size: 12px;
-            color: #999;
-            margin-bottom: 10px;
+            opacity: 0.6;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            color: #aaa;
         }
 
         .card-description {
             font-size: 14px;
-            color: #666;
-            margin-bottom: 15px;
+            line-height: 1.6;
+            opacity: 0.8;
+            color: #ddd;
+            margin-bottom: 30px;
             flex: 1;
-            line-height: 1.5;
         }
 
         .card-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-top: 1px solid #eee;
-            padding-top: 15px;
         }
 
         .difficulty {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            padding: 4px 8px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 20px;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .difficulty.beginner {
-            background: #d4edda;
-            color: #155724;
+            background: rgba(100, 200, 100, 0.2);
+            color: #64c864;
+            border: 1px solid #64c864;
         }
 
         .difficulty.intermediate {
-            background: #fff3cd;
-            color: #856404;
+            background: rgba(200, 180, 100, 0.2);
+            color: #d4b456;
+            border: 1px solid #d4b456;
         }
 
         .difficulty.advanced {
-            background: #f8d7da;
-            color: #721c24;
+            background: rgba(200, 100, 100, 0.2);
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
         }
 
         .btn-start {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
             font-weight: 600;
             cursor: pointer;
+            font-size: 14px;
             transition: all 0.3s;
-            font-size: 12px;
+            letter-spacing: 1px;
         }
 
         .btn-start:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transform: scale(1.08);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.5);
         }
 
-        /* 響應式設計 */
+        .btn-start:active {
+            transform: scale(0.95);
+        }
+
+        /* 滾動提示 */
+        .scroll-hint {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            opacity: 0.5;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* 響應式 */
+        @media (max-width: 1200px) {
+            .exercise-card {
+                flex: 0 0 calc(100% / 2 - 15px);
+                min-width: 300px;
+            }
+
+            .card-icon {
+                font-size: 100px;
+            }
+
+            .card-title {
+                font-size: 24px;
+            }
+        }
+
         @media (max-width: 768px) {
-            header h1 {
+            .header h1 {
                 font-size: 36px;
             }
 
-            .exercises-grid {
-                grid-template-columns: 1fr;
+            .exercise-card {
+                flex: 0 0 100%;
+                min-width: 100%;
+            }
+
+            .card-content {
+                padding: 30px 20px;
+            }
+
+            .card-icon {
+                font-size: 80px;
+            }
+
+            .card-title {
+                font-size: 22px;
             }
         }
+
+        /* 沒有卡片時的提示 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.6;
+        }
+
+        .empty-state p {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
     </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧬 AnatomyTracker</h1>
+        <p>選擇要演講的動作</p>
+    </div>
+
+    <div class="carousel-container">
+        <div class="carousel" id="carousel">
+            <!-- 動作卡片會動態插入這裡 -->
+        </div>
+        <div class="scroll-hint">← 滑動查看更多 →</div>
+    </div>
 
     <script>
-        let currentCategory = 'all';
-
         function renderExercises() {
-            const grid = document.getElementById('exercisesGrid');
-            grid.innerHTML = '';
+            const carousel = document.getElementById('carousel');
+            carousel.innerHTML = '';
 
-            let exercises = getAllExercises();
+            const exercises = getAllExercises();
 
-            if (currentCategory !== 'all') {
-                exercises = exercises.filter(e => e.category === currentCategory);
+            if (exercises.length === 0) {
+                carousel.innerHTML = '<div class="empty-state"><p>暫無動作配置</p></div>';
+                return;
             }
 
             exercises.forEach(exercise => {
@@ -260,13 +298,13 @@
                 card.onclick = () => startExercise(exercise.id);
 
                 card.innerHTML = `
-                    <div class="card-image">
-                        <div class="card-icon">${exercise.icon}</div>
-                    </div>
                     <div class="card-content">
-                        <div class="card-category">${exercise.category}</div>
-                        <div class="card-title">${exercise.name}</div>
-                        <div class="card-description">${exercise.description}</div>
+                        <div>
+                            <div class="card-category">${exercise.category}</div>
+                            <div class="card-icon">${exercise.icon}</div>
+                            <div class="card-title">${exercise.name}</div>
+                            <div class="card-description">${exercise.description}</div>
+                        </div>
                         <div class="card-footer">
                             <span class="difficulty ${exercise.difficulty}">${exercise.difficulty}</span>
                             <button class="btn-start">開始 →</button>
@@ -274,25 +312,13 @@
                     </div>
                 `;
 
-                grid.appendChild(card);
+                carousel.appendChild(card);
             });
-        }
-
-        function filterByCategory(category) {
-            currentCategory = category;
-
-            // 更新按鈕狀態
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            renderExercises();
         }
 
         function startExercise(exerciseId) {
-            // 導向到動作詳情頁
-            window.location.href = `exercise.html?id=${exerciseId}`;
+            // 導向到演講模式
+            window.location.href = `presentation.html?id=${exerciseId}`;
         }
 
         // 頁面載入時渲染
