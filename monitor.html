@@ -6,10 +6,10 @@
     <title>AnatomyTracker - 監控端</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js"></script>
 
     <style>
         :root {
@@ -106,18 +106,18 @@
             background: #000;
         }
 
-        /* 左側：視訊牆 */
         #video-container {
             flex: 1;
             position: relative;
             background: #111;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .video-wrapper {
-            position: absolute;
-            top: 0;
-            left: 0;
+            position: relative;
             width: 100%;
             height: 100%;
             overflow: hidden;
@@ -143,13 +143,11 @@
             display: block;
         }
 
-        /* 右側：Three.js 3D 模型 */
         #canvas-3d {
             flex: 1;
             background: #34495e;
         }
 
-        /* 設定面板 */
         .setup-card {
             background: white;
             padding: 30px;
@@ -158,28 +156,7 @@
             width: 90%;
             max-width: 600px;
             text-align: center;
-            margin: 20px auto;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             z-index: 50;
-        }
-
-        .option-btn {
-            background: transparent;
-            border: 1px solid var(--accent-color);
-            color: var(--accent-color);
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: 0.2s;
-            margin: 5px;
-        }
-
-        .option-btn.active {
-            background: var(--accent-color);
-            color: white;
         }
 
         .input-group {
@@ -220,6 +197,12 @@
         .info-panel div {
             margin: 5px 0;
         }
+
+        .waiting-message {
+            color: #fff;
+            text-align: center;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
@@ -241,19 +224,26 @@
     </header>
 
     <div class="main-container">
-        <div class="setup-card" id="setup-panel">
-            <h3>連線設定</h3>
-            <p>請輸入鏡頭端 ID：</p>
+        <div id="video-container">
+            <div class="setup-card" id="setup-panel">
+                <h3>連線設定</h3>
+                <p>請輸入鏡頭端 ID：</p>
 
-            <div class="input-group">
-                <label>手機 ID</label>
-                <input type="text" id="cam-id" placeholder="輸入手機上的 4 位數 ID">
+                <div class="input-group">
+                    <label>手機 ID</label>
+                    <input type="text" id="cam-id" placeholder="輸入手機上的 4 位數 ID">
+                </div>
+
+                <button class="btn-primary" onclick="startSystem()">開始連線</button>
             </div>
 
-            <button class="btn-primary" onclick="startSystem()">開始連線</button>
-        </div>
+            <div id="waiting-container" style="display:none;">
+                <div class="waiting-message">
+                    ⏳ 等待鏡頭端連線...<br>
+                    <small>請確保手機已開啟鏡頭</small>
+                </div>
+            </div>
 
-        <div id="video-container">
             <div class="info-panel">
                 <div id="status">準備中...</div>
                 <div id="fps">FPS: 0</div>
@@ -274,17 +264,28 @@
         let modelAnimator = null;
         let fpsCounter = { fps: 0, frameCount: 0, lastTime: performance.now() };
         let lastPoseData = null;
+        let isConnected = false;
 
         function closeModal() {
             document.getElementById('disclaimer-modal').style.display = 'none';
         }
 
+        function updateStatus(text) {
+            const statusEl = document.getElementById('status');
+            if (statusEl) statusEl.textContent = text;
+        }
+
         // ========== 系統啟動 ==========
         function startSystem() {
-            const camId = document.getElementById('cam-id').value;
-            if (!camId) return alert("請輸入 ID");
+            const camId = document.getElementById('cam-id').value.trim();
+            if (!camId) {
+                alert("請輸入 ID");
+                return;
+            }
 
             document.getElementById('setup-panel').style.display = 'none';
+            document.getElementById('waiting-container').style.display = 'block';
+            updateStatus('🔄 正在連線...');
 
             // 建立 Three.js 場景
             initThreeJS();
@@ -296,6 +297,10 @@
         // ========== Three.js 初始化 ==========
         function initThreeJS() {
             const canvas = document.getElementById('canvas-3d');
+            if (!canvas) {
+                console.error("找不到 canvas-3d");
+                return;
+            }
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x34495e);
@@ -328,58 +333,89 @@
         }
 
         // ========== 加載 3D 模型 ==========
-        async function loadModel() {
+        function loadModel() {
+            console.log("開始加載模型...");
+
+            if (typeof THREE.GLTFLoader === 'undefined') {
+                console.error("THREE.GLTFLoader 未定義！");
+                updateStatus("✗ GLTFLoader 加載失敗");
+                return;
+            }
+
             const loader = new THREE.GLTFLoader();
 
-            try {
-                const gltf = await new Promise((resolve, reject) => {
-                    loader.load('models/pec.glb', resolve, undefined, reject);
-                });
+            loader.load(
+                'models/pec.glb',
+                (gltf) => {
+                    console.log("模型加載成功!");
+                    const model = gltf.scene;
+                    scene.add(model);
 
-                const model = gltf.scene;
-                scene.add(model);
+                    modelAnimator = {
+                        model: model,
+                        bones: {},
+                        isLoaded: true
+                    };
 
-                // 初始化模型動畫器（可擴展）
-                modelAnimator = {
-                    model: model,
-                    bones: {},
-                    isLoaded: true
-                };
+                    model.traverse((node) => {
+                        if (node.isBone) {
+                            modelAnimator.bones[node.name] = node;
+                        }
+                    });
 
-                // 收集骨骼
-                model.traverse((node) => {
-                    if (node.isBone) {
-                        modelAnimator.bones[node.name] = node;
-                    }
-                });
-
-                document.getElementById('status').textContent = "✓ 模型已加載";
-
-            } catch (error) {
-                console.error('模型加載失敗:', error);
-                document.getElementById('status').textContent = "✗ 模型加載失敗";
-            }
+                    updateStatus("✓ 模型已加載");
+                },
+                (progress) => {
+                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                    console.log(`模型加載中: ${percent}%`);
+                    updateStatus(`📦 模型加載中: ${percent}%`);
+                },
+                (error) => {
+                    console.error('模型加載失敗:', error);
+                    updateStatus("✗ 模型加載失敗");
+                }
+            );
         }
 
         // ========== 連線到遠端鏡頭 ==========
         function connectToCamera(targetId) {
+            console.log(`嘗試連線到: ${targetId}`);
+
             const conn = myPeer.connect(targetId);
 
+            conn.on('open', () => {
+                console.log("數據連線已建立");
+                updateStatus("✓ 數據連線已建立");
+            });
+
+            conn.on('error', (err) => {
+                console.error("連線錯誤:", err);
+                updateStatus("✗ 連線錯誤: " + err.type);
+            });
+
             myPeer.on('call', (call) => {
-                if (call.peer === targetId) {
+                console.log("收到視訊呼叫:", call.peer);
+
+                if (call.peer === targetId && !isConnected) {
                     call.answer();
                     call.on('stream', (remoteStream) => {
+                        console.log("收到遠端影像串流");
                         setupVideo(remoteStream);
-                        document.getElementById('status').textContent = "✓ 已連線";
                     });
+                    call.on('error', (err) => {
+                        console.error("呼叫錯誤:", err);
+                    });
+                    isConnected = true;
                 }
             });
         }
 
         // ========== 設置視訊元素 ==========
         function setupVideo(stream) {
-            // 建立 video 和 canvas
+            console.log("設置視訊元素...");
+
             const videoContainer = document.getElementById('video-container');
+            videoContainer.innerHTML = '';
 
             videoElement = document.createElement('video');
             videoElement.id = 'remote-video';
@@ -396,12 +432,33 @@
             wrapper.appendChild(canvasElement);
             videoContainer.appendChild(wrapper);
 
-            // 初始化 MediaPipe Pose
-            initPoseDetection();
+            // 重新添加信息面板
+            const infoPanel = document.createElement('div');
+            infoPanel.className = 'info-panel';
+            infoPanel.innerHTML = `
+                <div id="status">連線中...</div>
+                <div id="fps">FPS: 0</div>
+                <div id="pose-info">檢測到的節點: 0</div>
+            `;
+            videoContainer.appendChild(infoPanel);
+
+            // 等待視訊加載
+            videoElement.onloadedmetadata = () => {
+                console.log("視訊已加載，開始檢測...");
+                updateStatus("✓ 已連線");
+                initPoseDetection();
+            };
+
+            videoElement.onerror = (err) => {
+                console.error("視訊錯誤:", err);
+                updateStatus("✗ 視訊加載失敗");
+            };
         }
 
         // ========== 初始化姿勢檢測 ==========
         function initPoseDetection() {
+            console.log("初始化 MediaPipe Pose...");
+
             pose = new Pose({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
             });
@@ -416,11 +473,12 @@
             pose.onResults((results) => {
                 drawSkeleton(results);
 
-                // 提取姿勢數據
                 if (results.poseLandmarks) {
                     lastPoseData = results.poseLandmarks;
-                    document.getElementById('pose-info').textContent =
-                        `檢測到的節點: ${results.poseLandmarks.length}`;
+                    const poseInfo = document.getElementById('pose-info');
+                    if (poseInfo) {
+                        poseInfo.textContent = `檢測到的節點: ${results.poseLandmarks.length}`;
+                    }
                 }
             });
 
@@ -428,9 +486,12 @@
         }
 
         async function detectFrame() {
-            if (!videoElement || !canvasElement) return;
+            if (!videoElement || !canvasElement || !pose) {
+                requestAnimationFrame(detectFrame);
+                return;
+            }
 
-            if (videoElement.videoWidth) {
+            if (videoElement.videoWidth > 0) {
                 canvasElement.width = videoElement.videoWidth;
                 canvasElement.height = videoElement.videoHeight;
                 await pose.send({ image: videoElement });
@@ -441,6 +502,8 @@
 
         // ========== 繪製骨骼 ==========
         function drawSkeleton(results) {
+            if (!canvasElement) return;
+
             const ctx = canvasElement.getContext('2d');
             const width = canvasElement.width;
             const height = canvasElement.height;
@@ -470,24 +533,26 @@
                 fpsCounter.fps = fpsCounter.frameCount;
                 fpsCounter.frameCount = 0;
                 fpsCounter.lastTime = currentTime;
-                document.getElementById('fps').textContent = `FPS: ${fpsCounter.fps}`;
+                const fpsEl = document.getElementById('fps');
+                if (fpsEl) {
+                    fpsEl.textContent = `FPS: ${fpsCounter.fps}`;
+                }
             }
 
             // 旋轉模型
             if (modelAnimator && modelAnimator.model) {
                 modelAnimator.model.rotation.y += 0.002;
-
-                // 這裡可以添加骨骼動畫邏輯
-                if (lastPoseData) {
-                    // TODO: 應用姿勢到骨骼
-                }
             }
 
-            renderer.render(scene, camera);
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
         }
 
         function onWindowResize() {
             const canvas = document.getElementById('canvas-3d');
+            if (!canvas || !renderer || !camera) return;
+
             const width = canvas.clientWidth;
             const height = canvas.clientHeight;
 
@@ -496,14 +561,14 @@
             renderer.setSize(width, height);
         }
 
-        // 在頁面加載時禁用模型容器
-        window.addEventListener('load', () => {
-            document.getElementById('canvas-3d').style.display = 'none';
-        });
-
         // 記錄 PeerJS 連接事件
         myPeer.on('open', (id) => {
-            console.log('My peer ID is: ' + id);
+            console.log('監控端 Peer ID: ' + id);
+        });
+
+        myPeer.on('error', (err) => {
+            console.error('Peer 錯誤:', err);
+            updateStatus('✗ Peer 連線失敗');
         });
     </script>
 </body>
